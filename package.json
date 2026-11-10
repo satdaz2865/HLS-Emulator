@@ -1,0 +1,11 @@
+{
+  "name": "playlist-sim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Visual HLS multivariant playlist pipeline: parse variants, inspect segments, watch playback in real time.",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  }
+}
