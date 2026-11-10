@@ -1,0 +1,59 @@
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-INDEPENDENT-SEGMENTS
+#
+# Curated HLS multivariant playlist for PlaylistSim.
+# Video and audio renditions are Apple's public "Apple TV Trailer" HLS
+# example assets (Dolby Vision / HDR10 / Atmos / AV1).
+# Source: https://developer.apple.com/streaming/examples/
+#
+
+# --- audio renditions ---------------------------------------------------
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aaclc-48-160",NAME="English",LANGUAGE="en-US",AUTOSELECT=YES,DEFAULT=YES,CHANNELS="2",URI="https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job932393e2-1e4f-4fdb-ab59-0d201f752656-107660254-Transcode_audio_en_stereo160_audio/prog_index.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="ac3-48-384",NAME="English",LANGUAGE="en-US",AUTOSELECT=YES,DEFAULT=YES,CHANNELS="6",URI="https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job932393e2-1e4f-4fdb-ab59-0d201f752656-107660254-Transcodeaudio_en_surround51dd_audio/prog_index.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="ec3-48-768",NAME="English",LANGUAGE="en-US",AUTOSELECT=YES,DEFAULT=YES,CHANNELS="16/JOC",URI="https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job932393e2-1e4f-4fdb-ab59-0d201f752656-107660254-Transcode_audio_full_en_atmos_0_1-en_audio/prog_index.m3u8"
+
+# --- video variants ----------------------------------------------------
+# SDR, H.264, AAC stereo
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=3960580,BANDWIDTH=5691842,VIDEO-RANGE=SDR,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="aaclc-48-160",NAME="SDR AVC AAC"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hls265/prog_index.m3u8
+
+# SDR, H.264, AC-3 5.1
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=4185760,BANDWIDTH=5917022,VIDEO-RANGE=SDR,CODECS="avc1.640028,ac-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ac3-48-384",NAME="SDR AVC AC3"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hls265/prog_index.m3u8
+
+# SDR, H.264, E-AC-3 Atmos
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=4569760,BANDWIDTH=6301022,VIDEO-RANGE=SDR,CODECS="avc1.640028,ec-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ec3-48-768",NAME="SDR AVC ATMOS"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hls265/prog_index.m3u8
+
+# SDR, HEVC, AAC stereo
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=2879612,BANDWIDTH=4813716,VIDEO-RANGE=SDR,CODECS="hvc1.2.20000000.L123.B0,mp4a.40.2",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="aaclc-48-160",NAME="SDR HEVC AAC"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hevchls565/prog_index.m3u8
+
+# HDR10, HEVC, AAC stereo
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=3396166,BANDWIDTH=5653463,VIDEO-RANGE=PQ,CODECS="hvc1.2.20000000.L123.B0,mp4a.40.2",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="aaclc-48-160",NAME="HDR10 HEVC AAC"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job8208634a-0add-4223-9782-600c14a70339-139240443-hls_bundle_hdrhls765_hdr10plus/prog_index.m3u8
+
+# HDR10, HEVC, E-AC-3 Atmos
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=4005346,BANDWIDTH=6262643,VIDEO-RANGE=PQ,CODECS="hvc1.2.20000000.L123.B0,ec-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ec3-48-768",NAME="HDR10 HEVC ATMOS"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job8208634a-0add-4223-9782-600c14a70339-139240443-hls_bundle_hdrhls765_hdr10plus/prog_index.m3u8
+
+# Dolby Vision, HEVC, E-AC-3 Atmos
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=4091669,BANDWIDTH=6597524,VIDEO-RANGE=PQ,CODECS="dvh1.05.03,ec-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ec3-48-768",NAME="DV ATMOS"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hdrhls765_dolbyvision/prog_index.m3u8
+
+# 4K Dolby Vision, HEVC, E-AC-3 Atmos
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=16657358,BANDWIDTH=33623778,VIDEO-RANGE=PQ,CODECS="dvh1.05.06,ec-3",RESOLUTION=3840x2160,FRAME-RATE=23.976,AUDIO="ec3-48-768",NAME="4K DV ATMOS"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/adv_dv_atmos/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_hdrhls797_dolbyvision/prog_index.m3u8
+
+# SDR, AV1, AAC stereo
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=2848866,BANDWIDTH=4612515,VIDEO-RANGE=SDR,CODECS="av01.0.08M.10.0.111.01.01.01.0,mp4a.40.2",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="aaclc-48-160",NAME="AV1 SDR AAC"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/av1-sample/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_av1hls598_1920_2.7M/prog_index.m3u8
+
+# SDR, AV1, AC-3 5.1
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=3074046,BANDWIDTH=4837695,VIDEO-RANGE=SDR,CODECS="av01.0.08M.10.0.111.01.01.01.0,ac-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ac3-48-384",NAME="AV1 SDR AC3"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/av1-sample/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_av1hls598_1920_2.7M/prog_index.m3u8
+
+# SDR, AV1, E-AC-3 Atmos
+#EXT-X-STREAM-INF:AVERAGE-BANDWIDTH=3458046,BANDWIDTH=5221695,VIDEO-RANGE=SDR,CODECS="av01.0.08M.10.0.111.01.01.01.0,ec-3",RESOLUTION=1920x1080,FRAME-RATE=23.976,AUDIO="ec3-48-768",NAME="AV1 SDR ATMOS"
+https://devstreaming-cdn.apple.com/videos/streaming/examples/av1-sample/Job2dae5735-d6ca-48ca-91be-0ec0bead535c-107702578-hls_bundle_av1hls598_1920_2.7M/prog_index.m3u8

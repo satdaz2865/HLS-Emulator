@@ -47,6 +47,8 @@ const els = {
   video: $('video'),
   playerPlaceholder: $('playerPlaceholder'),
   playerVariant: $('playerVariant'),
+  playerMode: $('playerMode'),
+  playerModeText: $('playerModeText'),
   playerState: $('playerState'),
   liveDot: $('liveDot'),
   playOverlay: $('playOverlay'),
@@ -458,6 +460,8 @@ function resetPlayback() {
   state.currentRowEl = null;
 
   els.playerVariant.textContent = 'no variant';
+  els.playerModeText.textContent = 'HLS';
+  els.playerMode.classList.remove('is-proxy');
   els.playerState.textContent = 'idle';
   els.liveDot.classList.remove('is-live');
   els.playOverlay.style.display = '';
@@ -553,14 +557,21 @@ function isAudioOnlyVariant(variant) {
   return codecs.every((codec) => /^(mp4a|ac-3|ec-3|opus|flac|dts)/i.test(codec));
 }
 
+function isImageVariant(variant) {
+  return (variant.codecs || []).some((codec) => /^(mjpg|jpeg|png)/i.test(codec));
+}
+
 function renderMaster(parsed, fetched) {
   const isMaster = parsed.type === 'master';
   let variants = parsed.variants || [];
 
-  // Audio-only renditions are playlists without a video track; keep the
-  // selector focused on video variants (unless a master is audio-only).
+  // Keep the selector focused on playable video variants. Audio-only
+  // renditions, I-frame trick-play playlists and still-image variants are
+  // not selectable playback variants.
   if (isMaster) {
-    const videoVariants = variants.filter((variant) => !isAudioOnlyVariant(variant));
+    const videoVariants = variants.filter(
+      (variant) => !variant.isIFrame && !isAudioOnlyVariant(variant) && !isImageVariant(variant),
+    );
     if (videoVariants.length) {
       variants = videoVariants;
       variants.forEach((variant, index) => {
@@ -828,6 +839,9 @@ function renderMedia(parsed) {
 
 function findSegment(frag) {
   if (!frag) return null;
+  // Ignore audio/subtitle fragments when a master supplies separate renditions;
+  // the segment timeline visualises the main video playlist.
+  if (frag.type && frag.type !== 'main') return null;
   if (frag.sn != null) {
     const segment = state.playlist?.segments.find((item) => item.sn === frag.sn);
     if (segment) return segment;
@@ -1001,9 +1015,20 @@ async function selectVariant(index) {
     setStatus('ready', 'ready');
     els.playerState.textContent = 'ready';
 
+    const proxy = findPlaybackProxy(variant);
+    if (proxy) {
+      log(
+        'warn',
+        `browser cannot decode selected codecs · playback proxy is ${variantLabel(proxy)} (${proxy.resolution?.width || '?'}x${proxy.resolution?.height || '?'}) — heartbeats still report ${variantLabel(variant)}`,
+      );
+    }
+
     log('select', `playing ${variantLabel(variant)} · ${formatBitrate(variant.bandwidth)} · ${media.playlist.segmentCount} segments`);
 
-    startPlayback(variant, resumeAt);
+    startPlayback(proxy || variant, resumeAt, false, {
+      displayVariant: variant,
+      isProxy: Boolean(proxy),
+    });
     startHeartbeats();
     paintSelection();
   } catch (error) {
@@ -1066,7 +1091,96 @@ function applyPendingResume() {
   }
 }
 
-function startPlayback(variant, resumeAt = 0) {
+function canUseMasterAudio(variant) {
+  if (!variant.audioGroup) return false;
+  const audioCodecs = (variant.codecs || []).filter(
+    (codec) => /^(mp4a|ac-3|ec-3|dts|opus)/i.test(codec),
+  );
+  if (!audioCodecs.length) return false;
+  if (typeof MediaSource === 'undefined' || typeof MediaSource.isTypeSupported !== 'function') {
+    return false;
+  }
+  return audioCodecs.some((codec) => MediaSource.isTypeSupported(`audio/mp4; codecs="${codec}"`));
+}
+
+function videoCodecOf(variant) {
+  return (variant.codecs || []).find(
+    (codec) => /^(avc1|avc3|hvc1|hev1|dvh1|dvhe|vp09|vp9|av01)/i.test(codec),
+  ) || null;
+}
+
+function isBrowserPlayableVideo(codec) {
+  return Boolean(codec) && /^(avc1|avc3|av01|vp09|vp9)/i.test(codec);
+}
+
+const IS_APPLE_WEBKIT = /Safari/i.test(navigator.userAgent)
+  && !/Chrome|Chromium|CriOS|Edg|OPR/i.test(navigator.userAgent);
+
+function needsPlaybackProxy(variant) {
+  if (!variant || variant.isDirect) return false;
+  const video = videoCodecOf(variant);
+  // Safari can decode HEVC/HDR/Dolby Vision; Chromium builds often cannot,
+  // even when MediaSource.isTypeSupported() claims support. Prefer native
+  // playback on Apple WebKit and proxy elsewhere.
+  const videoUnsupported = video && !isBrowserPlayableVideo(video) && !IS_APPLE_WEBKIT;
+  const audioUnsupported = Boolean(variant.audioGroup) && !canUseMasterAudio(variant);
+  return Boolean(videoUnsupported || audioUnsupported);
+}
+
+function findPlaybackProxy(variant) {
+  if (!needsPlaybackProxy(variant)) return null;
+  if (!state.master?.variants?.length) return null;
+
+  const candidates = state.master.variants.filter((candidate) => {
+    if (candidate === variant) return false;
+    if (!isBrowserPlayableVideo(videoCodecOf(candidate))) return false;
+    if (candidate.videoRange && candidate.videoRange !== 'SDR') return false;
+    if (candidate.audioGroup && !canUseMasterAudio(candidate)) return false;
+    return true;
+  });
+  if (!candidates.length) return null;
+
+  const targetHeight = variant.resolution?.height || 1080;
+  candidates.sort((a, b) => {
+    const distanceA = Math.abs((a.resolution?.height || 0) - targetHeight);
+    const distanceB = Math.abs((b.resolution?.height || 0) - targetHeight);
+    if (distanceA !== distanceB) return distanceA - distanceB;
+
+    const avcA = /^avc1/i.test(videoCodecOf(a) || '') ? 0 : 1;
+    const avcB = /^avc1/i.test(videoCodecOf(b) || '') ? 0 : 1;
+    if (avcA !== avcB) return avcA - avcB;
+
+    return (b.bandwidth || 0) - (a.bandwidth || 0);
+  });
+  return candidates[0];
+}
+
+function findHlsLevelIndex(levels, variant) {
+  if (!Array.isArray(levels) || !levels.length) return -1;
+
+  const levelUrls = (level) => (Array.isArray(level.url) ? level.url : [level.url]).filter(Boolean);
+  const uriMatches = (level) => (
+    levelUrls(level).includes(variant.url)
+    || level.uri === variant.uri
+  );
+  const audioMatches = (level) => (level.attrs?.AUDIO || '') === (variant.audioGroup || '');
+
+  let index = levels.findIndex((level) => uriMatches(level) && audioMatches(level));
+  if (index >= 0) return index;
+
+  index = levels.findIndex(uriMatches);
+  if (index >= 0) return index;
+
+  return levels.findIndex((level) => (
+    Number(level.attrs?.BANDWIDTH) === variant.bandwidth
+    && (level.attrs?.RESOLUTION || '') === (variant.attributes?.RESOLUTION || '')
+    && audioMatches(level)
+  ));
+}
+
+function startPlayback(variant, resumeAt = 0, forceDirect = false, options = {}) {
+  const displayVariant = options.displayVariant || variant;
+  const isProxy = Boolean(options.isProxy);
   if (!Hls) {
     showToast('hls.js failed to load. Check vendor/hls.min.js.');
     return;
@@ -1095,9 +1209,11 @@ function startPlayback(variant, resumeAt = 0) {
   els.playerShell.classList.toggle('is-audio-only', audioOnly);
   els.playerShell.classList.toggle('is-muted', state.muted);
   els.video.muted = state.muted;
-  els.playerVariant.textContent = variant.resolution
-    ? `${variantLabel(variant)} · ${variant.resolution.width}×${variant.resolution.height}`
-    : variantLabel(variant);
+  els.playerVariant.textContent = displayVariant.resolution
+    ? `${variantLabel(displayVariant)} · ${displayVariant.resolution.width}×${displayVariant.resolution.height}`
+    : variantLabel(displayVariant);
+  els.playerModeText.textContent = isProxy ? 'PROXY' : 'HLS';
+  els.playerMode.classList.toggle('is-proxy', isProxy);
 
   const placeholderTitle = els.playerPlaceholder?.querySelector('p');
   const placeholderSub = els.playerPlaceholder?.querySelector('span');
@@ -1107,12 +1223,28 @@ function startPlayback(variant, resumeAt = 0) {
   if (placeholderSub) {
     placeholderSub.textContent = audioOnly ? 'This variant has no video track' : 'Segment data is on the way';
   }
-  els.playerVariant.title = variant.url;
+  els.playerVariant.title = isProxy
+    ? `selected: ${displayVariant.url}\nplayback proxy: ${variant.url}`
+    : displayVariant.url;
   els.playerState.textContent = 'loading';
   els.liveDot.classList.remove('is-live');
 
   setStage('play', 'active', 'buffering…');
   setStatus('loading', 'buffering');
+
+  // When the variant uses a separate EXT-X-MEDIA audio rendition that the
+  // browser can decode, hls.js needs the master playlist so it can attach
+  // the audio track. Otherwise load the media playlist directly so the
+  // video still plays (audio is silent when it is a separate rendition).
+  const useMasterSource = !forceDirect
+    && canUseMasterAudio(variant)
+    && state.master?.type === 'master'
+    && !variant.isDirect;
+  const hlsSource = useMasterSource ? state.masterUrl : variant.url;
+
+  if (variant.audioGroup && !useMasterSource && !forceDirect) {
+    log('warn', `audio codec is not supported by this browser · using video-only media playlist for ${variantLabel(variant)}`);
+  }
 
   const hls = new Hls({
     enableWorker: true,
@@ -1128,20 +1260,46 @@ function startPlayback(variant, resumeAt = 0) {
   state.hls = hls;
 
   hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-    log('manifest', 'MediaSource attached');
-    hls.loadSource(variant.url);
+    log('manifest', useMasterSource ? 'MediaSource attached · loading master for audio group' : 'MediaSource attached');
+    hls.loadSource(hlsSource);
   });
 
   hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
     log('manifest', `hls manifest parsed · ${data.levels?.length || 1} level(s)`);
+    if (useMasterSource) {
+      const levelIndex = findHlsLevelIndex(hls.levels, variant);
+      if (levelIndex >= 0) {
+        hls.startLevel = levelIndex;
+        hls.currentLevel = levelIndex;
+        log('select', `pinned hls level ${levelIndex} · ${variantLabel(variant)} · audio ${variant.audioGroup}`);
+      } else {
+        const resume = Number.isFinite(els.video.currentTime) ? els.video.currentTime : state.pendingResume;
+        log('warn', `selected level is not available to hls.js · retrying video-only for ${variantLabel(variant)}`);
+        destroyHls();
+        setTimeout(() => startPlayback(variant, resume, true, options), 0);
+        return;
+      }
+    }
     applyPendingResume();
     const promise = els.video.play();
     if (promise?.catch) {
-      promise.catch(() => {
-        log('warn', 'autoplay was blocked — press play to start');
+      promise.catch((error) => {
+        if (error?.name === 'NotAllowedError') {
+          log('warn', 'autoplay was blocked — press play to start');
+        } else if (error?.name === 'AbortError') {
+          log('warn', 'playback start was interrupted by a source switch');
+        } else {
+          log('warn', `playback could not start · ${error?.message || 'unknown error'}`);
+        }
         els.playerState.textContent = 'paused';
         setStatus('ready', 'ready');
       });
+    }
+  });
+
+  hls.on(Hls.Events.LEVEL_SWITCHED, () => {
+    if (els.video.paused) {
+      els.video.play().catch(() => {});
     }
   });
 
@@ -1492,14 +1650,13 @@ function deriveTelemetry(variant) {
       && variant.audioGroup
       && rendition.groupId === variant.audioGroup,
   );
-  const channelAttr = audioRendition?.channels
-    ? Number.parseInt(audioRendition.channels, 10)
-    : null;
+  const channelAttrRaw = audioRendition?.channels || '';
+  const channelAttr = channelAttrRaw ? Number.parseInt(channelAttrRaw, 10) : null;
 
-  const hasJoc = /joc|atmos/.test(`${codecString} ${supplemental}`);
-  const hasDts = /dtsx|dts-x|dts/.test(codecString);
-  const hasEc3 = /ec-3|eac3/.test(codecString);
-  const hasAc3 = /ac-3/.test(codecString);
+  const hasJoc = /joc|atmos/i.test(`${codecString} ${supplemental} ${channelAttrRaw} ${audioRendition?.name || ''}`);
+  const hasDts = /dtsx|dts-x|dts/i.test(codecString);
+  const hasEc3 = /ec-3|eac3/i.test(codecString);
+  const hasAc3 = /ac-3/i.test(codecString);
 
   let currentAudioChannels = Number.isFinite(channelAttr) && channelAttr > 0
     ? channelAttr
@@ -1520,14 +1677,14 @@ function deriveTelemetry(variant) {
   }
 
   let currentAudioType;
-  if (hasDts || currentAudioChannels === 16) currentAudioType = 'DTS-X';
-  else if (hasJoc || currentAudioChannels === 10) currentAudioType = 'ATMOS';
+  if (hasDts) currentAudioType = 'DTS-X';
+  else if (hasJoc || currentAudioChannels >= 10) currentAudioType = 'ATMOS';
   else if (currentAudioChannels === 6) currentAudioType = 'SURROUND';
   else currentAudioType = 'STEREO';
 
   let currentAudioCodec;
   if (hasDts) currentAudioCodec = 'dtsx-ps2';
-  else if (hasJoc) currentAudioCodec = 'ec3-joc';
+  else if (hasJoc || (currentAudioChannels >= 10 && hasEc3)) currentAudioCodec = 'ec3-joc';
   else if (hasEc3 || hasAc3) currentAudioCodec = 'ec-3';
   else currentAudioCodec = 'aac';
 
@@ -1713,8 +1870,15 @@ async function loadMaster(rawUrl) {
     }
 
     renderMaster(parsed, fetched);
-    const isPreset = [...els.presetSelect.options].some((option) => option.value === state.masterUrl);
-    els.presetSelect.value = isPreset ? state.masterUrl : '';
+    const matchedPreset = [...els.presetSelect.options].find((option) => {
+      if (!option.value) return false;
+      try {
+        return new URL(option.value, window.location.href).href === state.masterUrl;
+      } catch {
+        return option.value === state.masterUrl;
+      }
+    });
+    els.presetSelect.value = matchedPreset?.value || '';
 
     log('system', `GET 200 · ${formatBytes(fetched.size)} · ${fetched.ms} ms`);
     log('warn', 'player starts muted so autoplay is permitted — use the speaker button to unmute');

@@ -48,7 +48,7 @@ export function parseCodecs(value) {
 
 const CODEC_LABELS = [
   [/^avc1/i, 'H.264'],
-  [/^hvc1|^hev1/i, 'HEVC'],
+  [/^hvc1|^hev1|^dvh1|^dvhe/i, 'HEVC'],
   [/^av01/i, 'AV1'],
   [/^vp09|^vp9/i, 'VP9'],
   [/^mp4a/i, 'AAC'],

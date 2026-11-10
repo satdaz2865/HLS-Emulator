@@ -1062,6 +1062,11 @@ code { font-family: var(--mono); }
   letter-spacing: 0.09em;
 }
 .player-pill i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.player-pill.is-proxy {
+  color: var(--amber);
+  border-color: rgba(255, 193, 77, 0.35);
+  background: rgba(255, 193, 77, 0.08);
+}
 
 .play-overlay {
   position: absolute;

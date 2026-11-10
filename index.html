@@ -49,6 +49,8 @@
       <option value="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8">Big Buck Bunny · 5 variants</option>
       <option value="https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8">Apple BipBop · 5 variants</option>
       <option value="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8">Tears of Steel · 5 variants</option>
+      <option value="/presets/apple-hdr-atmos.m3u8">Apple HDR/Atmos demo · 11 variants</option>
+      <option value="https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8">Apple BipBop Advanced · TS · 24 variants</option>
       <option value="" disabled>Custom URL</option>
     </select>
   </div>
@@ -236,7 +238,7 @@
 
         <div class="player-top">
           <span class="player-badge" id="playerVariant">no variant</span>
-          <span class="player-pill"><i></i>HLS</span>
+          <span class="player-pill" id="playerMode"><i></i><span id="playerModeText">HLS</span></span>
         </div>
 
         <button class="play-overlay" id="playOverlay" aria-label="Play video">
