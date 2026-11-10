@@ -625,6 +625,7 @@ code { font-family: var(--mono); }
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto 15px;
   align-items: center;
+  flex: 0 0 auto;
   gap: 10px;
   width: 100%;
   padding: 8px 9px;
