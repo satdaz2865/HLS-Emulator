@@ -1613,10 +1613,16 @@ function appendHeartbeat(payload, sequence) {
   const now = new Date();
   const timestamp = `${now.toTimeString().slice(0, 8)}.${String(now.getMilliseconds()).padStart(3, '0')}`;
 
+  const event = {
+    timestamp: now.toISOString(),
+    heartbeat: sequence,
+    ...payload,
+  };
+
   const row = document.createElement('div');
   row.className = 'hb-row is-new';
-  row.dataset.payload = JSON.stringify(payload);
-  row.title = `heartbeat #${sequence}\n${JSON.stringify(payload, null, 2)}`;
+  row.dataset.payload = JSON.stringify(event);
+  row.title = `heartbeat #${sequence}\n${JSON.stringify(event, null, 2)}`;
 
   const time = document.createElement('span');
   time.className = 'hb-time';
